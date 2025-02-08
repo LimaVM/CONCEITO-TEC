@@ -42,8 +42,8 @@ for ($i = 1; $i -le $quantidade; $i++) {
             Write-Host "Diretório do usuário criado em $userDir" -ForegroundColor Green
         }
 
-        # Definir permissões de acesso ao diretório
-        icacls $userDir /grant "$username:(OI)(CI)F" /T /Q
+        # Definir permissões de acesso ao diretório (CORREÇÃO AQUI)
+        icacls $userDir /grant "${username}:(OI)(CI)F" /T /Q
     }
 }
 
