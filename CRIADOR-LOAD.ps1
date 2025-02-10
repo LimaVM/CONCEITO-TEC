@@ -67,26 +67,15 @@ username:s:$username
     }
 }
 
-# Adicionar endereços à Intranet Local para TODOS os usuários
-$sites = @(
-    "10.0.1.226",
-    "168.75.88.252",
-    "system",
-    "localhost"
-)
+# Adicionar APENAS o endereço file:\\10.0.1.57 à Intranet Local
+$site = "file:\\10.0.1.57"
+$path = "HKLM:\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\EscDomains\10.0.1.57"
 
-foreach ($site in $sites) {
-    $path = "HKLM:\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\EscDomains\$site"
-    
-    if (!(Test-Path $path)) {
-        New-Item -Path $path -Force | Out-Null
-    }
-    
-    New-ItemProperty -Path $path -Name "*" -Value 1 -PropertyType DWORD -Force | Out-Null
-    Write-Host "Adicionado $site à Intranet Local para TODOS os usuários." -ForegroundColor Yellow
+if (!(Test-Path $path)) {
+    New-Item -Path $path -Force | Out-Null
 }
-
-Write-Host "Configuração de Intranet Local concluída!" -ForegroundColor Green
+New-ItemProperty -Path $path -Name "*" -Value 1 -PropertyType DWORD -Force | Out-Null
+Write-Host "Adicionado $site à Intranet Local." -ForegroundColor Yellow
 
 # Mapear unidade de rede A: para TODOS os usuários
 $networkDrive = "A:"
