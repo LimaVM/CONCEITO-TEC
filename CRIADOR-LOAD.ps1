@@ -11,7 +11,7 @@ $prefix = Read-Host "Digite o prefixo do usuário"
 $quantidade = Read-Host "Digite a quantidade de usuários a serem criados"
 
 # Solicitar a senha única para todos os usuários
-$password = Read-Host "Digite a senha para todos os usuários"
+$password = Read-Host "Digite a senha para todos os usuários" -AsSecureString
 
 # Criar usuários numerados sem criar pastas automaticamente
 for ($i = 1; $i -le $quantidade; $i++) {
@@ -23,22 +23,21 @@ for ($i = 1; $i -le $quantidade; $i++) {
         Write-Host "O usuário $username já existe! Pulando para o próximo." -ForegroundColor Red
     } else {
         # Criar usuário no Windows sem perfil de diretório criado automaticamente
-        $securePassword = ConvertTo-SecureString $password -AsPlainText -Force
-        New-LocalUser -Name $username -Password $securePassword -FullName $username -PasswordNeverExpires:$true -NoProfile
+        New-LocalUser -Name $username -Password $password -FullName $username -PasswordNeverExpires:$true -NoProfile
         
         # Impedir que o usuário altere a senha
         net user $username /Passwordchg:no
 
-        # Adicionar o usuário ao grupo "Users"
-        Add-LocalGroupMember -Group "Users" -Member $username
+        # Adicionar o usuário ao grupo "Usuários" (grupo padrão em português)
+        Add-LocalGroupMember -Group "Usuários" -Member $username
 
         Write-Host "Usuário $username criado com sucesso!" -ForegroundColor Green
     }
 }
 
-# Adicionar APENAS o endereço file:\\10.0.1.57 à Intranet Local
+# Adicionar o endereço file:\\10.0.1.57 à Intranet Local
 $site = "file:\\10.0.1.57"
-$path = "HKLM:\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\EscDomains\10.0.1.57"
+$path = "HKLM:\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\10.0.1.57"
 
 if (!(Test-Path $path)) {
     New-Item -Path $path -Force | Out-Null
@@ -46,31 +45,24 @@ if (!(Test-Path $path)) {
 New-ItemProperty -Path $path -Name "*" -Value 1 -PropertyType DWORD -Force | Out-Null
 Write-Host "Adicionado $site à Intranet Local." -ForegroundColor Yellow
 
-# Configurar o compartilhamento como confiável no Internet Explorer
-$internetSettings = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\10.0.1.57"
+# Configurar o compartilhamento como confiável no Internet Explorer (Zona de Sites Confiáveis)
+$internetSettings = "HKLM:\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\10.0.1.57"
 if (!(Test-Path $internetSettings)) {
     New-Item -Path $internetSettings -Force | Out-Null
 }
-New-ItemProperty -Path $internetSettings -Name "file" -Value 1 -PropertyType DWORD -Force | Out-Null
+New-ItemProperty -Path $internetSettings -Name "file" -Value 2 -PropertyType DWORD -Force | Out-Null
 Write-Host "Compartilhamento adicionado como confiável no Internet Explorer." -ForegroundColor Green
 
-# Mapear unidade de rede A: para TODOS os usuários
-$networkDrive = "A:"
-$networkPath = "\\10.0.1.57\smb_share"
+# Configurar mapeamento de unidade para todos os usuários via script de inicialização
+$startupBatPath = "$env:ProgramData\Microsoft\Windows\Start Menu\Programs\Startup\MapDriveA.bat"
+$batContent = @"
+@echo off
+net use A: /delete /y 2>nul
+net use A: \\10.0.1.57\smb_share /persistent:yes
+"@
 
-Write-Host "Mapeando unidade de rede $networkDrive para $networkPath..." -ForegroundColor Yellow
-
-# Tenta remover a unidade anterior, caso já esteja mapeada
-net use $networkDrive /delete /y 2>$null
-
-# Mapear a nova unidade
-$mapResult = net use $networkDrive $networkPath /persistent:yes
-
-if ($mapResult -match "The command completed successfully") {
-    Write-Host "Unidade de rede $networkDrive mapeada com sucesso para $networkPath!" -ForegroundColor Green
-} else {
-    Write-Host "Falha ao mapear unidade de rede. Verifique a conexão e permissões." -ForegroundColor Red
-}
+Set-Content -Path $startupBatPath -Value $batContent -Encoding ASCII
+Write-Host "Script de inicialização configurado para mapear a unidade A: para todos os usuários." -ForegroundColor Green
 
 # PAUSAR NO FINAL PARA VER ERROS OU CONFIRMAR QUE TUDO DEU CERTO
 Read-Host "Pressione ENTER para finalizar"
