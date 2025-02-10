@@ -72,12 +72,12 @@ username:s:$username
             Write-Host "Arquivo RDP criado para $username em $rdpFile" -ForegroundColor Yellow
 
             # Conectar automaticamente ao usuário via RDP
-            Start-Process "mstsc.exe" -ArgumentList "$rdpFile"
+            $rdpProcess = Start-Process "mstsc.exe" -ArgumentList "$rdpFile" -PassThru
             Write-Host "Conectando via RDP com o usuário $username para inicializar tudo..." -ForegroundColor Cyan
 
-            # Aguarda 10 segundos e realiza logoff
+            # Aguarda 10 segundos e fecha a conexão RDP
             Start-Sleep -Seconds 10
-            logoff
+            Stop-Process -Id $rdpProcess.Id -Force
             Write-Host "Sessão RDP para $username finalizada automaticamente!" -ForegroundColor Red
         }
     } catch {
