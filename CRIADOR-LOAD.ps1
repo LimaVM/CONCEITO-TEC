@@ -77,6 +77,14 @@ if (!(Test-Path $path)) {
 New-ItemProperty -Path $path -Name "*" -Value 1 -PropertyType DWORD -Force | Out-Null
 Write-Host "Adicionado $site à Intranet Local." -ForegroundColor Yellow
 
+# Configurar o compartilhamento como confiável no Internet Explorer
+$internetSettings = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\Domains\10.0.1.57"
+if (!(Test-Path $internetSettings)) {
+    New-Item -Path $internetSettings -Force | Out-Null
+}
+New-ItemProperty -Path $internetSettings -Name "file" -Value 1 -PropertyType DWORD -Force | Out-Null
+Write-Host "Compartilhamento adicionado como confiável no Internet Explorer." -ForegroundColor Green
+
 # Mapear unidade de rede A: para TODOS os usuários
 $networkDrive = "A:"
 $networkPath = "\\10.0.1.57\smb_share"
@@ -94,21 +102,6 @@ if ($mapResult -match "The command completed successfully") {
 } else {
     Write-Host "Falha ao mapear unidade de rede. Verifique a conexão e permissões." -ForegroundColor Red
 }
-
-# Criar um script para **LOGIN AUTOMÁTICO** na primeira inicialização
-$logonScript = "C:\Users\Public\first_login.bat"
-$logonContent = @"
-@echo off
-net use A: \\10.0.1.57\smb_share /persistent:yes
-REG DELETE "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" /V MapDrive /F
-DEL %0
-"@
-Set-Content -Path $logonScript -Value $logonContent
-
-# Configurar o script para rodar no primeiro login
-New-Item -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce" -Name "FirstLoginSetup" -Value $logonScript -PropertyType String -Force
-
-Write-Host "Configuração para login automático na primeira inicialização feita com sucesso!" -ForegroundColor Green
 
 # PAUSAR NO FINAL PARA VER ERROS OU CONFIRMAR QUE TUDO DEU CERTO
 Read-Host "Pressione ENTER para finalizar"
