@@ -36,7 +36,8 @@ try {
     exit
 }
 
-# Criar usuários numerados sem criar pastas automaticamente
+# Criar usuários numerados sem criar pastas automaticamente e iniciar conexões RDP simultaneamente
+$rdpProcesses = @()
 for ($i = 1; $i -le $quantidade; $i++) {
     $num = "{0:D2}" -f $i  # Garante que o número tenha dois dígitos (01, 02, 03...)
     $username = "$prefix$num"
@@ -75,17 +76,21 @@ username:s:$username
             Set-Content -Path $rdpFile -Value $rdpContent
             Write-Host "Arquivo RDP criado para $username em $rdpFile" -ForegroundColor Yellow
 
-            # Conectar automaticamente ao usuário via RDP e fechar após 15 segundos
-            $rdpProcess = Start-Process "mstsc.exe" -ArgumentList "$rdpFile" -PassThru
+            # Conectar automaticamente ao usuário via RDP e armazenar processos
+            $rdpProcesses += Start-Process "mstsc.exe" -ArgumentList "$rdpFile" -PassThru
             Write-Host "Conectando via RDP com o usuário $username..." -ForegroundColor Cyan
-            Start-Sleep -Seconds 15
-            Stop-Process -Id $rdpProcess.Id -Force
-            Write-Host "Sessão RDP para $username finalizada automaticamente após 15 segundos!" -ForegroundColor Red
         }
     } catch {
         Show-Error "Erro ao criar o usuário $username."
     }
 }
+
+# Aguardar 15 segundos e fechar todas as conexões RDP simultaneamente
+Start-Sleep -Seconds 15
+foreach ($rdpProcess in $rdpProcesses) {
+    Stop-Process -Id $rdpProcess.Id -Force
+}
+Write-Host "Todas as sessões RDP finalizadas automaticamente após 15 segundos!" -ForegroundColor Red
 
 # Adicionar o endereço file:\\10.0.1.57 à Intranet Local
 try {
