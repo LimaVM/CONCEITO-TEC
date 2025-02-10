@@ -13,7 +13,7 @@ $quantidade = Read-Host "Digite a quantidade de usuários a serem criados"
 # Solicitar a senha única para todos os usuários
 $password = Read-Host "Digite a senha para todos os usuários"
 
-# Criar usuários numerados
+# Criar usuários numerados sem criar pastas automaticamente
 for ($i = 1; $i -le $quantidade; $i++) {
     $num = "{0:D2}" -f $i  # Garante que o número tenha dois dígitos (01, 02, 03...)
     $username = "$prefix$num"
@@ -22,10 +22,10 @@ for ($i = 1; $i -le $quantidade; $i++) {
     if (Get-LocalUser -Name $username -ErrorAction SilentlyContinue) {
         Write-Host "O usuário $username já existe! Pulando para o próximo." -ForegroundColor Red
     } else {
-        # Criar usuário no Windows
+        # Criar usuário no Windows sem perfil de diretório criado automaticamente
         $securePassword = ConvertTo-SecureString $password -AsPlainText -Force
-        New-LocalUser -Name $username -Password $securePassword -FullName $username -PasswordNeverExpires:$true
-
+        New-LocalUser -Name $username -Password $securePassword -FullName $username -PasswordNeverExpires:$true -NoProfile
+        
         # Impedir que o usuário altere a senha
         net user $username /Passwordchg:no
 
@@ -33,37 +33,6 @@ for ($i = 1; $i -le $quantidade; $i++) {
         Add-LocalGroupMember -Group "Users" -Member $username
 
         Write-Host "Usuário $username criado com sucesso!" -ForegroundColor Green
-
-        # Salvar credenciais temporariamente no Gerenciador de Credenciais
-        cmdkey /generic:TERMSRV/127.0.0.1 /user:$username /pass:$password
-
-        # Criar um arquivo RDP para login automático
-        $rdpFile = "C:\Users\Public\$username.rdp"
-        $rdpContent = @"
-screen mode id:i:2
-desktopwidth:i:1280
-desktopheight:i:720
-session bpp:i:32
-auto connect:i:1
-full address:s:127.0.0.1
-username:s:$username
-"@
-        Set-Content -Path $rdpFile -Value $rdpContent
-        Write-Host "Arquivo RDP criado para $username em $rdpFile" -ForegroundColor Yellow
-
-        # Conectar automaticamente ao usuário via RDP
-        Start-Process "mstsc.exe" -ArgumentList "$rdpFile"
-        Write-Host "Conectando via RDP com o usuário $username para inicializar tudo..." -ForegroundColor Cyan
-
-        # Aguarda 10 segundos e tenta fechar a conexão RDP apenas se ela estiver aberta
-        Start-Sleep -Seconds 10
-        $mstscProcess = Get-Process -Name "mstsc" -ErrorAction SilentlyContinue
-        if ($mstscProcess) {
-            Stop-Process -Name "mstsc" -Force
-            Write-Host "Sessão RDP para $username finalizada automaticamente!" -ForegroundColor Red
-        } else {
-            Write-Host "Nenhum processo RDP encontrado para fechar." -ForegroundColor Yellow
-        }
     }
 }
 
