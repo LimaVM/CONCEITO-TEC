@@ -81,17 +81,19 @@ Write-Host "Adicionado $site à Intranet Local." -ForegroundColor Yellow
 $networkDrive = "A:"
 $networkPath = "\\10.0.1.57\smb_share"
 
-# Remover unidade existente (se houver)
-if (Test-Path $networkDrive) {
-    Write-Host "Removendo unidade de rede existente..." -ForegroundColor Yellow
-    net use $networkDrive /delete /y
+Write-Host "Mapeando unidade de rede $networkDrive para $networkPath..." -ForegroundColor Yellow
+
+# Tenta remover a unidade anterior, caso já esteja mapeada
+net use $networkDrive /delete /y 2>$null
+
+# Mapear a nova unidade
+$mapResult = net use $networkDrive $networkPath /persistent:yes
+
+if ($mapResult -match "The command completed successfully") {
+    Write-Host "Unidade de rede $networkDrive mapeada com sucesso para $networkPath!" -ForegroundColor Green
+} else {
+    Write-Host "Falha ao mapear unidade de rede. Verifique a conexão e permissões." -ForegroundColor Red
 }
-
-# Mapear o novo disco para TODOS OS USUÁRIOS
-Write-Host "Mapeando unidade de rede $networkDrive para $networkPath para TODOS os usuários..." -ForegroundColor Yellow
-New-Item -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" -Name "MapDrive" -Value "net use $networkDrive $networkPath /persistent:yes" -PropertyType String -Force
-
-Write-Host "Unidade de rede $networkDrive mapeada com sucesso para $networkPath!" -ForegroundColor Green
 
 # Criar um script para **LOGIN AUTOMÁTICO** na primeira inicialização
 $logonScript = "C:\Users\Public\first_login.bat"
