@@ -11,7 +11,7 @@ $prefix = Read-Host "Digite o prefixo do usuário"
 $quantidade = Read-Host "Digite a quantidade de usuários a serem criados"
 
 # Solicitar a senha única para todos os usuários
-$password = Read-Host "Digite a senha para todos os usuários" -AsSecureString
+$password = Read-Host "Digite a senha para todos os usuários"
 
 # Criar usuários numerados
 for ($i = 1; $i -le $quantidade; $i++) {
@@ -23,7 +23,8 @@ for ($i = 1; $i -le $quantidade; $i++) {
         Write-Host "O usuário $username já existe! Pulando para o próximo." -ForegroundColor Red
     } else {
         # Criar usuário no Windows
-        New-LocalUser -Name $username -Password $password -FullName $username -PasswordNeverExpires:$true
+        $securePassword = ConvertTo-SecureString $password -AsPlainText -Force
+        New-LocalUser -Name $username -Password $securePassword -FullName $username -PasswordNeverExpires:$true
 
         # Impedir que o usuário altere a senha
         net user $username /Passwordchg:no
@@ -36,19 +37,26 @@ for ($i = 1; $i -le $quantidade; $i++) {
         # Criar um arquivo RDP para login automático
         $rdpFile = "C:\Users\Public\$username.rdp"
         $rdpContent = @"
+full address:s:127.0.0.1
+username:s:$username
+password 51:b:$([Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($password)))
 screen mode id:i:2
 desktopwidth:i:1280
 desktopheight:i:720
 session bpp:i:32
-full address:s:127.0.0.1
-username:s:$username
+auto connect:i:1
 "@
         Set-Content -Path $rdpFile -Value $rdpContent
         Write-Host "Arquivo RDP criado para $username em $rdpFile" -ForegroundColor Yellow
 
         # Conectar automaticamente ao usuário via RDP
-        Start-Process "mstsc.exe" -ArgumentList $rdpFile
+        Start-Process "mstsc.exe" -ArgumentList "$rdpFile"
         Write-Host "Conectando via RDP com o usuário $username para inicializar tudo..." -ForegroundColor Cyan
+        
+        # Aguarda 10 segundos e encerra a conexão RDP
+        Start-Sleep -Seconds 10
+        Stop-Process -Name "mstsc" -Force
+        Write-Host "Sessão RDP para $username finalizada automaticamente!" -ForegroundColor Red
     }
 }
 
