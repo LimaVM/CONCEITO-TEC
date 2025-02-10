@@ -2,8 +2,6 @@
 $admin = [System.Security.Principal.WindowsPrincipal] [System.Security.Principal.WindowsIdentity]::GetCurrent()
 if (-not $admin.IsInRole([System.Security.Principal.WindowsBuiltInRole]::Administrator)) {
     Write-Host "Este script precisa ser executado como Administrador!" -ForegroundColor Red
-    
-    # Reexecuta o script com permissões elevadas
     Start-Process powershell -ArgumentList ("-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"") -Verb RunAs
     exit
 }
@@ -28,26 +26,33 @@ for ($i = 1; $i -le $quantidade; $i++) {
         New-LocalUser -Name $username -Password $password -FullName $username -PasswordNeverExpires:$true
 
         # Impedir que o usuário altere a senha
-        Set-LocalUser -Name $username -PasswordNeverExpires:$true
+        net user $username /Passwordchg:no
 
         # Adicionar o usuário ao grupo "Users"
         Add-LocalGroupMember -Group "Users" -Member $username
 
         Write-Host "Usuário $username criado com sucesso!" -ForegroundColor Green
 
-        # Criar diretório do usuário em C:\Users
-        $userDir = "C:\Users\$username"
-        if (!(Test-Path $userDir)) {
-            New-Item -ItemType Directory -Path $userDir -Force | Out-Null
-            Write-Host "Diretório do usuário criado em $userDir" -ForegroundColor Green
-        }
+        # Criar um arquivo RDP para login automático
+        $rdpFile = "C:\Users\Public\$username.rdp"
+        $rdpContent = @"
+screen mode id:i:2
+desktopwidth:i:1280
+desktopheight:i:720
+session bpp:i:32
+full address:s:127.0.0.1
+username:s:$username
+"@
+        Set-Content -Path $rdpFile -Value $rdpContent
+        Write-Host "Arquivo RDP criado para $username em $rdpFile" -ForegroundColor Yellow
 
-        # Definir permissões de acesso ao diretório (CORREÇÃO AQUI)
-        icacls $userDir /grant "${username}:(OI)(CI)F" /T /Q
+        # Conectar automaticamente ao usuário via RDP
+        Start-Process "mstsc.exe" -ArgumentList $rdpFile
+        Write-Host "Conectando via RDP com o usuário $username para inicializar tudo..." -ForegroundColor Cyan
     }
 }
 
-# Adicionar endereços à Intranet Local
+# Adicionar endereços à Intranet Local para TODOS os usuários
 $sites = @(
     "10.0.1.226",
     "168.75.88.252",
@@ -56,19 +61,19 @@ $sites = @(
 )
 
 foreach ($site in $sites) {
-    $path = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\EscDomains\$site"
+    $path = "HKLM:\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\EscDomains\$site"
     
     if (!(Test-Path $path)) {
         New-Item -Path $path -Force | Out-Null
     }
     
     New-ItemProperty -Path $path -Name "*" -Value 1 -PropertyType DWORD -Force | Out-Null
-    Write-Host "Adicionado $site à Intranet Local." -ForegroundColor Yellow
+    Write-Host "Adicionado $site à Intranet Local para TODOS os usuários." -ForegroundColor Yellow
 }
 
 Write-Host "Configuração de Intranet Local concluída!" -ForegroundColor Green
 
-# Mapear unidade de rede A:
+# Mapear unidade de rede A: para TODOS os usuários
 $networkDrive = "A:"
 $networkPath = "\\10.0.1.57\smb_share"
 
@@ -78,11 +83,26 @@ if (Test-Path $networkDrive) {
     net use $networkDrive /delete /y
 }
 
-# Mapear o novo disco
-Write-Host "Mapeando unidade de rede $networkDrive para $networkPath ..." -ForegroundColor Yellow
-net use $networkDrive $networkPath /persistent:yes
+# Mapear o novo disco para TODOS OS USUÁRIOS
+Write-Host "Mapeando unidade de rede $networkDrive para $networkPath para TODOS os usuários..." -ForegroundColor Yellow
+New-Item -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" -Name "MapDrive" -Value "net use $networkDrive $networkPath /persistent:yes" -PropertyType String -Force
 
 Write-Host "Unidade de rede $networkDrive mapeada com sucesso para $networkPath!" -ForegroundColor Green
+
+# Criar um script para **LOGIN AUTOMÁTICO** na primeira inicialização
+$logonScript = "C:\Users\Public\first_login.bat"
+$logonContent = @"
+@echo off
+net use A: \\10.0.1.57\smb_share /persistent:yes
+REG DELETE "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" /V MapDrive /F
+DEL %0
+"@
+Set-Content -Path $logonScript -Value $logonContent
+
+# Configurar o script para rodar no primeiro login
+New-Item -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce" -Name "FirstLoginSetup" -Value $logonScript -PropertyType String -Force
+
+Write-Host "Configuração para login automático na primeira inicialização feita com sucesso!" -ForegroundColor Green
 
 # PAUSAR NO FINAL PARA VER ERROS OU CONFIRMAR QUE TUDO DEU CERTO
 Read-Host "Pressione ENTER para finalizar"
