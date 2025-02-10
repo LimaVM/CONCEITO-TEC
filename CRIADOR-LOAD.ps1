@@ -75,9 +75,12 @@ username:s:$username
             Set-Content -Path $rdpFile -Value $rdpContent
             Write-Host "Arquivo RDP criado para $username em $rdpFile" -ForegroundColor Yellow
 
-            # Conectar automaticamente ao usuário via RDP
-            Start-Process "mstsc.exe" -ArgumentList "$rdpFile"
+            # Conectar automaticamente ao usuário via RDP e fechar após 15 segundos
+            $rdpProcess = Start-Process "mstsc.exe" -ArgumentList "$rdpFile" -PassThru
             Write-Host "Conectando via RDP com o usuário $username..." -ForegroundColor Cyan
+            Start-Sleep -Seconds 15
+            Stop-Process -Id $rdpProcess.Id -Force
+            Write-Host "Sessão RDP para $username finalizada automaticamente após 15 segundos!" -ForegroundColor Red
         }
     } catch {
         Show-Error "Erro ao criar o usuário $username."
