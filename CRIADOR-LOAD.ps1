@@ -30,7 +30,7 @@ try {
 
 # Solicitar a senha única para todos os usuários
 try {
-    $password = Read-Host "Digite a senha para todos os usuários" -AsSecureString
+    $password = Read-Host "Digite a senha para todos os usuários"
 } catch {
     Show-Error "Erro ao capturar a senha."
     exit
@@ -47,7 +47,8 @@ for ($i = 1; $i -le $quantidade; $i++) {
             Write-Host "O usuário $username já existe! Pulando para o próximo." -ForegroundColor Red
         } else {
             # Criar usuário no Windows sem perfil de diretório criado automaticamente
-            New-LocalUser -Name $username -Password $password -FullName $username -PasswordNeverExpires:$true
+            $securePassword = ConvertTo-SecureString $password -AsPlainText -Force
+            New-LocalUser -Name $username -Password $securePassword -FullName $username -PasswordNeverExpires:$true
             
             # Impedir que o usuário altere a senha
             net user $username /Passwordchg:no
@@ -56,6 +57,9 @@ for ($i = 1; $i -le $quantidade; $i++) {
             Add-LocalGroupMember -Group "Users" -Member $username
 
             Write-Host "Usuário $username criado com sucesso!" -ForegroundColor Green
+            
+            # Criar credencial no Windows Credential Manager para RDP
+            cmdkey /generic:TERMSRV/127.0.0.1 /user:$username /pass:$password
             
             # Criar um arquivo RDP para login automático
             $rdpFile = "C:\Users\Public\$username.rdp"
@@ -72,13 +76,8 @@ username:s:$username
             Write-Host "Arquivo RDP criado para $username em $rdpFile" -ForegroundColor Yellow
 
             # Conectar automaticamente ao usuário via RDP
-            $rdpProcess = Start-Process "mstsc.exe" -ArgumentList "$rdpFile" -PassThru
-            Write-Host "Conectando via RDP com o usuário $username para inicializar tudo..." -ForegroundColor Cyan
-
-            # Aguarda 10 segundos e fecha a conexão RDP
-            Start-Sleep -Seconds 10
-            Stop-Process -Id $rdpProcess.Id -Force
-            Write-Host "Sessão RDP para $username finalizada automaticamente!" -ForegroundColor Red
+            Start-Process "mstsc.exe" -ArgumentList "$rdpFile"
+            Write-Host "Conectando via RDP com o usuário $username..." -ForegroundColor Cyan
         }
     } catch {
         Show-Error "Erro ao criar o usuário $username."
