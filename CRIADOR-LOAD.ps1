@@ -34,17 +34,19 @@ for ($i = 1; $i -le $quantidade; $i++) {
 
         Write-Host "Usuário $username criado com sucesso!" -ForegroundColor Green
 
+        # Salvar credenciais temporariamente no Gerenciador de Credenciais
+        cmdkey /generic:TERMSRV/127.0.0.1 /user:$username /pass:$password
+
         # Criar um arquivo RDP para login automático
         $rdpFile = "C:\Users\Public\$username.rdp"
         $rdpContent = @"
-full address:s:127.0.0.1
-username:s:$username
-password 51:b:$([Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($password)))
 screen mode id:i:2
 desktopwidth:i:1280
 desktopheight:i:720
 session bpp:i:32
 auto connect:i:1
+full address:s:127.0.0.1
+username:s:$username
 "@
         Set-Content -Path $rdpFile -Value $rdpContent
         Write-Host "Arquivo RDP criado para $username em $rdpFile" -ForegroundColor Yellow
@@ -52,11 +54,16 @@ auto connect:i:1
         # Conectar automaticamente ao usuário via RDP
         Start-Process "mstsc.exe" -ArgumentList "$rdpFile"
         Write-Host "Conectando via RDP com o usuário $username para inicializar tudo..." -ForegroundColor Cyan
-        
-        # Aguarda 10 segundos e encerra a conexão RDP
+
+        # Aguarda 10 segundos e tenta fechar a conexão RDP apenas se ela estiver aberta
         Start-Sleep -Seconds 10
-        Stop-Process -Name "mstsc" -Force
-        Write-Host "Sessão RDP para $username finalizada automaticamente!" -ForegroundColor Red
+        $mstscProcess = Get-Process -Name "mstsc" -ErrorAction SilentlyContinue
+        if ($mstscProcess) {
+            Stop-Process -Name "mstsc" -Force
+            Write-Host "Sessão RDP para $username finalizada automaticamente!" -ForegroundColor Red
+        } else {
+            Write-Host "Nenhum processo RDP encontrado para fechar." -ForegroundColor Yellow
+        }
     }
 }
 
