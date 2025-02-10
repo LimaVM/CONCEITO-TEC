@@ -47,7 +47,7 @@ for ($i = 1; $i -le $quantidade; $i++) {
             Write-Host "O usuário $username já existe! Pulando para o próximo." -ForegroundColor Red
         } else {
             # Criar usuário no Windows sem perfil de diretório criado automaticamente
-            New-LocalUser -Name $username -Password $password -FullName $username -PasswordNeverExpires:$true -NoProfile
+            New-LocalUser -Name $username -Password $password -FullName $username -PasswordNeverExpires:$true
             
             # Impedir que o usuário altere a senha
             net user $username /Passwordchg:no
