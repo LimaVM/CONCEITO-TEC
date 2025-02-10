@@ -52,8 +52,8 @@ for ($i = 1; $i -le $quantidade; $i++) {
             # Impedir que o usuário altere a senha
             net user $username /Passwordchg:no
 
-            # Adicionar o usuário ao grupo "Usuários" (grupo padrão em português)
-            Add-LocalGroupMember -Group "Usuários" -Member $username
+            # Adicionar o usuário ao grupo "Users" (grupo padrão em inglês)
+            Add-LocalGroupMember -Group "Users" -Member $username
 
             Write-Host "Usuário $username criado com sucesso!" -ForegroundColor Green
         }
