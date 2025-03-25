@@ -1,8 +1,12 @@
-serverAddr = "167.234.231.216"
-serverPort = 7000
+[common]
+server_addr = "167.234.231.216"
+server_port = 7000
+log_level = "debug"
 
-[win_shell]
+# Cada proxy deve ficar dentro de um bloco [[proxies]]
+[[proxies]]
+name = "win_shell"
 type = "tcp"
-localIP = "127.0.0.1"
-localPort = 4444
-remotePort = 14791
+local_ip = "127.0.0.1"
+local_port = 4444
+remote_port = 14791
